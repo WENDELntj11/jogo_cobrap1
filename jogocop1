@@ -1,0 +1,181 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+class SnakeGame
+{
+    const int LARGURA = 20;
+    const int ALTURA = 10;
+    const int MAX_OBSTACULOS = 5;
+
+    enum Direcao { Cima, Baixo, Esquerda, Direita }
+    static Direcao direcaoatual = Direcao.Direita;
+
+    static List<(int, int)> cobrinha = new List<(int, int)> { (5, 5) };
+    static (int, int) comida = (0, 0);
+    static List<(int, int)> obstaculos = new List<(int, int)>();
+    static bool jogoRodando = true;
+
+    static int pontuacao = 0;
+    static int vidas = 3;
+    static int velocidade = 200; // Velocidade inicial (Normal)
+
+    static void Main()
+    {
+        Console.CursorVisible = false;
+
+        ConfigurarJogo();
+
+        GerarComida();
+        GerarObstaculos();
+
+        while (jogoRodando)
+        {
+            AtualizarDirecao();
+            AtualizarJogo();
+            RenderizarGame();
+            Thread.Sleep(velocidade);
+        }
+
+        Console.Clear();
+        Console.WriteLine($"Jogo Encerrado. Você fez {pontuacao} pontos!");
+    }
+
+    static void ConfigurarJogo()
+    {
+        Console.WriteLine("Escolha o nível de dificuldade:");
+        Console.WriteLine("1 - Fácil (Velocidade Lenta)");
+        Console.WriteLine("2 - Normal (Velocidade Média)");
+        Console.WriteLine("3 - Difícil (Velocidade Rápida)");
+        Console.Write("Opção: ");
+
+        string escolha = Console.ReadLine();
+        velocidade = escolha switch
+        {
+            "1" => 300,
+            "2" => 200,
+            "3" => 100,
+            _ => 200 // Padrão: Normal
+        };
+
+        Console.Clear();
+    }
+
+    static void AtualizarDirecao()
+    {
+        if (Console.KeyAvailable)
+        {
+            var tecla = Console.ReadKey(intercept: true).Key;
+            direcaoatual = tecla switch
+            {
+                ConsoleKey.UpArrow => Direcao.Cima,
+                ConsoleKey.DownArrow => Direcao.Baixo,
+                ConsoleKey.LeftArrow => Direcao.Esquerda,
+                ConsoleKey.RightArrow => Direcao.Direita,
+                _ => direcaoatual
+            };
+        }
+    }
+
+    static void AtualizarJogo()
+    {
+        var cabeca = cobrinha[0];
+        (int x, int y) novaPosicao = direcaoatual switch
+        {
+            Direcao.Cima => (cabeca.Item1, cabeca.Item2 - 1),
+            Direcao.Baixo => (cabeca.Item1, cabeca.Item2 + 1),
+            Direcao.Esquerda => (cabeca.Item1 - 1, cabeca.Item2),
+            Direcao.Direita => (cabeca.Item1 + 1, cabeca.Item2),
+            _ => cabeca
+        };
+
+        if (novaPosicao.x < 0 || novaPosicao.x >= LARGURA || novaPosicao.y < 0 || novaPosicao.y >= ALTURA || cobrinha.Contains(novaPosicao) || obstaculos.Contains(novaPosicao))
+        {
+            vidas--;
+            if (vidas > 0)
+            {
+                cobrinha = new List<(int, int)> { (5, 5) };
+                direcaoatual = Direcao.Direita;
+                Console.Clear();
+            }
+            else
+            {
+                jogoRodando = false;
+            }
+            return;
+        }
+
+        cobrinha.Insert(0, novaPosicao);
+
+        if (novaPosicao == comida)
+        {
+            pontuacao += 10;
+            GerarComida();
+        }
+        else
+        {
+            cobrinha.RemoveAt(cobrinha.Count - 1);
+        }
+    }
+
+    static void RenderizarGame()
+    {
+        Console.Clear();
+
+        Console.WriteLine($"Pontuação: {pontuacao} | Vidas: {vidas} | Dificuldade: {(velocidade == 300 ? "Fácil" : velocidade == 200 ? "Normal" : "Difícil")}");
+        Console.WriteLine(new string('-', LARGURA));
+
+        for (int y = 0; y < ALTURA; y++)
+        {
+            for (int x = 0; x < LARGURA; x++)
+            {
+                if (cobrinha.Contains((x, y)))
+                {
+                    Console.Write("@");
+                }
+                else if (comida == (x, y))
+                {
+                    Console.Write("*");
+                }
+                else if (obstaculos.Contains((x, y)))
+                {
+                    Console.Write("#");
+                }
+                else
+                {
+                    Console.Write(" ");
+                }
+            }
+            Console.WriteLine();
+        }
+
+        Console.WriteLine(new string('-', LARGURA));
+    }
+
+    static void GerarComida()
+    {
+        Random random = new Random();
+
+        do
+        {
+            comida = (random.Next(0, LARGURA), random.Next(0, ALTURA));
+        } while (cobrinha.Contains(comida) || obstaculos.Contains(comida));
+    }
+
+    static void GerarObstaculos()
+    {
+        Random random = new Random();
+        obstaculos.Clear();
+
+        for (int i = 0; i < MAX_OBSTACULOS; i++)
+        {
+            (int, int) novoObstaculo;
+            do
+            {
+                novoObstaculo = (random.Next(0, LARGURA), random.Next(0, ALTURA));
+            } while (cobrinha.Contains(novoObstaculo) || obstaculos.Contains(novoObstaculo) || novoObstaculo == comida);
+
+            obstaculos.Add(novoObstaculo);
+        }
+    }
+}
